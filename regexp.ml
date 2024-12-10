@@ -8,39 +8,47 @@ type regExp =
 
 exception Invalid_RegExp
 
-let rec eps_appartient e = match e with
-| Epsilon | Etoile _ -> true
-| All _ | Lettre _ -> false
-| Concat (e1,e2) -> (eps_appartient e1) && (eps_appartient e2)
-| Altern (e1,e2) -> (eps_appartient e1) || (eps_appartient e2)
 
-let string_to_regexp s = 
+
+let creer_liste_lettre () =
+  let rec aux i l =
+    if i<256 then 
+      aux (i+1) ( (Char.chr i, 0)::l )
+    else l 
+  in
+  aux 0 []
+
+let rec lettre_dans_liste c l = match l with
+| [] -> -1
+| (a,i)::q -> if a = c then i else lettre_dans_liste c q
+
+let rec incr_lettre_liste c l = match l with
+| [] -> (c,0)::[]
+| (a,i)::q -> if a = c then (a,i+1)::q else (a,i)::(incr_lettre_liste c q)
+
+
+
+let string_to_regexp s = (*création de la regexp à partir du str rentré par l'utilisateur*)
   let n = String.length s in
-  if n = 0 then raise Invalid_RegExp else
-  let pile = Stack.create () in
-  let i_all = ref 0 in
-  let i_lettre = ref 0 in
+  if n = 0 then raise Invalid_RegExp else (*une regexp vide est invalide*)
+  let pile = Stack.create () in (*La pile est indispensable, car on utilise dans le str l'odre postfixe*)
+  let all_cmp = ref 0 in
+  let lettre_cmp = ref (creer_liste_lettre ()) in
   for i=0 to (n-1) do
-    if s.[i] = '.' then (
-      Stack.push (All (!i_all)) pile;
-      i_all := 1 + !i_all )
-    else
-      if s.[i] = '@' then 
-        Stack.push (Concat (Stack.pop pile, Stack.pop pile)) pile
-      else
-        if s.[i] = '|' then 
-          Stack.push (Altern (Stack.pop pile, Stack.pop pile)) pile
-        else
-          if s.[i] = '*' then 
-            Stack.push (Etoile (Stack.pop pile)) pile
-          else
-            if s.[i] = '?' then 
-              Stack.push (Altern (Stack.pop pile, Epsilon)) pile
-            else (
-              Stack.push (Lettre (s.[i], !i_lettre)) pile;
-              i_lettre := 1 + !i_lettre )
-            done;
-  if (Stack.length pile) > 1 then raise Invalid_RegExp
+    match s.[i] with
+    | '.' -> (Stack.push (All (!all_cmp)) pile ; all_cmp := 1 + !all_cmp )
+    | '@' -> Stack.push (Concat (Stack.pop pile, Stack.pop pile)) pile
+    | '|' -> Stack.push (Altern (Stack.pop pile, Stack.pop pile)) pile
+    | '*' -> Stack.push (Etoile (Stack.pop pile)) pile
+    | '?' -> Stack.push (Altern (Stack.pop pile, Epsilon)) pile
+    | a   -> begin
+      let i = lettre_dans_liste a !lettre_cmp in
+      if i = -1 then (
+        raise Invalid_RegExp )
+      else (
+        Stack.push (Lettre (a,i)) pile;
+        lettre_cmp := incr_lettre_liste a !lettre_cmp )
+    end
+  done;
+  if (Stack.length pile) <> 1 then raise Invalid_RegExp
   else Stack.pop pile
-
-let rec pref r = 
