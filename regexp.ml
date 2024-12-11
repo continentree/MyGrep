@@ -82,3 +82,24 @@ let suff_regexp e =
 in
 (aux e; !suff)
 
+let rec prod_elt_ensemble a l = match l with        (*Ici on aura besoin de 3 fonction auxiliaire : celle-ci est*)
+| [] -> []                                          (*l'auxiliaire d'une auxiliaire, pour réaliser un produit ensembliste*)
+| e::q -> (a,e)::(prod_elt_ensemble a q)
+
+let rec prod_ensembliste l1 l2 = match l1 with
+| [] -> []
+| e::q -> (prod_elt_ensemble e l2)@(prod_ensembliste q l2)
+
+let rec supp_eps l = match l with (*Ici on supprime les epsilon d'une liste : pref et suff renvoient epsilon, mais ceux-ci ne doivent pas être présents dans les facteurs*)
+| [] -> []
+| (Epsilon,_)::q | (_,Epsilon)::q -> supp_eps ql'auxiliaire d'une auxiliaire, pour réaliser un produit ensembliste*)
+| (a,b)::q -> (a,b)::(supp_eps q)
+
+let fact_regexp e =
+  let rec fact regexp = match regexp with
+  | Epsilon | Lettre _ | All _ -> [] (*Dans ces cas-là, il n'y a qu'un seul caractère. On se permet de les ignorer.*)
+  | Concat (e1,e2) -> (fact e1)@(fact e2)@(prod_ensembliste (suff_regexp e1) (pref_regexp e2)) (*On unit 3 ensembles ici, dont le produit ensembliste définit plus haut.*)
+  | Altern (e1,e2) -> (fact e1)@(fact e2)
+  | Etoile (e1) -> (fact e1)@(fact e1)@(prod_ensembliste (suff_regexp e1) (pref_regexp e1)) (* e1* admet les mêmes facteurs que e1.e1*)
+in
+supp_eps (fact e) (*On supprime les Epsilon ici.*)
