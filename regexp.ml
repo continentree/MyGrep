@@ -103,3 +103,47 @@ let fact_regexp e =
   | Etoile (e1) -> (fact e1)@(fact e1)@(prod_ensembliste (suff_regexp e1) (pref_regexp e1)) (* e1* admet les mêmes facteurs que e1.e1*)
 in
 supp_eps (fact e) (*On supprime les Epsilon ici.*)
+                    
+type automate = {start: regExp list; finish: regExp list; delta: (regExp,regExp) Hashtbl.t}
+                
+let rec len_regexp e = match e with
+  | Epsilon -> 0
+  | Lettre _ | All _ -> 1
+  | Concat (e1, e2) | Altern (e1, e2) -> len_regexp e1 + len_regexp e2
+  | Etoile (e1) -> len_regexp e1
+                    
+let regexp_to_automate e =
+  let f = fact_regexp e in
+  let a = {start=pref_regexp e; finish=suff_regexp e; delta=Hashtbl.create (len_regexp e)} in
+  let q = ref a.start in
+  while !q <> [] do begin
+    let h = List.hd !q in
+    q := List.tl !q;
+    List.iter (fun (r1,r2) ->
+        if r1 = h then begin
+          Hashtbl.add a.delta h r2;
+          if not (Hashtbl.mem a.delta r2) then q := r2::!q
+        end
+      ) f
+  end; done;
+  a
+  
+let delta a q c = 
+  let res = ref [] in
+  List.iter (fun e -> match e with 
+      | All _ -> res := e::!res
+      | Lettre (l, _) -> if l = c then res := e::!res
+    ) (if q = Epsilon then a.start else Hashtbl.find_all a.delta q);
+  !res
+    
+let delta_star a s = 
+  let n = String.length s in
+  let res = ref [] in
+  let rec aux lq i = if i<n then List.iter (fun q -> aux (delta a q s.[i]) (i+1)) lq else res := lq@(!res) in
+  aux [Epsilon] 0;
+  !res
+    
+let is_recognised a s = 
+  let res = ref false in
+  List.iter (fun q -> if not (!res) && List.mem q a.finish then res := true) (delta_star a s);
+  !res
