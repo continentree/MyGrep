@@ -137,3 +137,48 @@ let is_recognised a s =
   let res = ref false in
   List.iter (fun q -> if not (!res) && List.mem q a.finish then res := true) (delta_star a s);
   !res
+
+
+
+
+
+
+  let process_line line a =
+    if is_recognised a line then
+      Printf.printf "%s\n%!" line
+  
+  (* Lecture de l'entrée, ligne par ligne *)
+  let process input a =
+    try
+      while true do
+        let line = Stdlib.input_line input in
+        process_line line a
+      done
+    with End_of_file -> ()
+  
+  let main () =
+    (* Vérifie que l'expression régulière est bien présente en premier
+       argument. Sinon, on affiche un message indiquant comment utiliser
+       ce programme et on quitte avec un code d'erreur de `1`. *)
+    let argc = Array.length Sys.argv in
+    if argc <> 3 then begin
+      Printf.printf "usage : %s regex [file]\n%!" Sys.argv.(0);
+      exit 1
+    end;
+    (* S'il y a un deuxième argument c'est qu'il faut lire dans ce
+       fichier, sinon, on utilise l'entrée standard. *)
+    let input =
+      if (argc = 3) then begin
+        Stdlib.open_in Sys.argv.(2)
+      end else
+        Stdlib.stdin
+    in
+    Printf.printf
+      "* Regexp you entered is '%s'\n* Reading from %s\n\n%!"
+      Sys.argv.(1)
+      (if argc = 3 then Sys.argv.(2) else "stdin");
+    let a = regexp_to_automate (string_to_regexp (Sys.argv.(1))) in
+    process input a;
+    if argc = 3 then Stdlib.close_in input
+  
+  let () = main ()
